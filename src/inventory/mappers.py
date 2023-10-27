@@ -68,32 +68,33 @@ class EC2DataMapper(DataMapper):
 
         for nic in config_resource["configuration"]["networkInterfaces"]:
             for ipAddress in nic["privateIpAddresses"]:
-                ec2_data = { "asset_type": "EC2",
-                             "unique_id": config_resource["configuration"]["instanceId"],
-                             "ip_address": ipAddress["privateIpAddress"],
-                             "is_virtual": "Yes",
-                             "authenticated_scan_planned": "Yes",
-                             "mac_address": nic["macAddress"],
-                             "baseline_config": config_resource["configuration"]["imageId"],
-                             "hardware_model": config_resource["configuration"]["instanceType"],
-                             "network_id": config_resource["configuration"]["vpcId"],
-                             "owner": _get_tag_value(config_resource["tags"], "owner") }
+                if ipAddress['privateIpAddress'].startwith("172.25") or ipAddress['privateIpAddress'].startwith("172.26"):
+                    ec2_data = {"asset_type": "EC2",
+                                "unique_id": config_resource["configuration"]["instanceId"],
+                                "ip_address": ipAddress["privateIpAddress"],
+                                "is_virtual": "Yes",
+                                "authenticated_scan_planned": "Yes",
+                                "mac_address": nic["macAddress"],
+                                "baseline_config": config_resource["configuration"]["imageId"],
+                                "hardware_model": config_resource["configuration"]["instanceType"],
+                                "network_id": config_resource["configuration"]["vpcId"],
+                                "owner": _get_tag_value(config_resource["tags"], "owner") }
 
-                if (public_dns_name := config_resource["configuration"].get("publicDnsName")):
-                    ec2_data["dns_name"] = public_dns_name
-                    ec2_data["is_public"] = "Yes"
-                else:
-                    ec2_data["dns_name"] = config_resource["configuration"]["privateDnsName"]
-                    ec2_data["is_public"] = "No"
-
-                ec2_data_list.append(InventoryData(**ec2_data))
-
-                if "association" in ipAddress:
-                    # Each IP address needs its own row in report so public IP requires an additional row
-                    ec2_data = copy.deepcopy(ec2_data)
-                    ec2_data["ip_address"] = ipAddress["association"]["publicIp"]
+                    if (public_dns_name := config_resource["configuration"].get("publicDnsName")):
+                        ec2_data["dns_name"] = public_dns_name
+                        ec2_data["is_public"] = "Yes"
+                    else:
+                        ec2_data["dns_name"] = config_resource["configuration"]["privateDnsName"]
+                        ec2_data["is_public"] = "No"
 
                     ec2_data_list.append(InventoryData(**ec2_data))
+
+                    if "association" in ipAddress:
+                        # Each IP address needs its own row in report so public IP requires an additional row
+                        ec2_data = copy.deepcopy(ec2_data)
+                        ec2_data["ip_address"] = ipAddress["association"]["publicIp"]
+
+                        ec2_data_list.append(InventoryData(**ec2_data))
 
         return ec2_data_list
 
